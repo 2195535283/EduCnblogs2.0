@@ -1,8 +1,14 @@
 import Storage from 'react-native-storage';
 import {AsyncStorage} from 'react-native';
+import {themes} from '../styles/theme-context';
 
+export const umengConfig = {
+	appkey:'5cb692ac570df31b8d000cd7',
+	appMasterSecret:'b2def4184d6c3bad76c1b5d7235e3398'
+}
 export default{
 	apiDomain : 'https://api.cnblogs.com/',
+	Edu : 'https://api.cnblogs.com/api/edu/',
 	AccessToken : 'https://oauth.cnblogs.com/connect/token',
 	AuthCode : 'https://oauth.cnblogs.com/connect/authorize',
 	CallBack : 'https://oauth.cnblogs.com/auth/callback',
@@ -14,9 +20,28 @@ export default{
 	AddMember : 'https://api.cnblogs.com/api/edu/member/register/displayName',
 	HomeWorkDetail : 'https://api.cnblogs.com/api/edu/homework/',
 	HomeWorkPublish : 'https://api.cnblogs.com/api/edu/homework/publish',
+	HomeWorkEdit : 'https://api.cnblogs.com/api/edu/homework/edit/',//https://api.cnblogs.com/api/edu/homework/edit/{homeworkId}
+	HomeWorkClose : 'https://api.cnblogs.com/api/edu/homework/close/',//关闭作业https://api.cnblogs.com/api/edu/homework/close/{schoolClassId}/{homeworkId}
+	HomeWorkRemove : 'https://api.cnblogs.com/api/edu/homework/remove/',
 	HomeWorkAnswer : 'https://api.cnblogs.com/api/edu/homework/answers/',
 	BlogInClassId: 'https://api.cnblogs.com/api/edu/member/',
 	SubmitJudge: 'https://api.cnblogs.com/api/edu/answer/iscommitted/',
+	BulletinList: 'https://api.cnblogs.com/api/edu/schoolclass/bulletins/',
+	BulletinPublish: 'https://api.cnblogs.com/api/edu/bulletin/publish/',
+    BulletinEdit: 'https://api.cnblogs.com/api/edu/bulletin/modify/',
+    BulletinDel: 'https://api.cnblogs.com/api/edu/bulletin/remove/',
+	Bookmarks: 'https://api.cnblogs.com/api/Bookmarks',
+	VoteList : 'https://api.cnblogs.com/api/edu/schoolclass/votes', //分页获取投票信息
+	VoteDetail :'https://api.cnblogs.com/api/edu/vote/',
+	VoteContent : 'https://api.cnblogs.com/api/edu/vote/contents/',//后接投票ID
+	VoteCommit : 'https://api.cnblogs.com/api/edu/vote/commit/', // 后接投票ID
+	VoteIsCommited: 'https://api.cnblogs.com/api/edu/vote/iscommitted/', // {memberId}/{voteId}
+	VoteCommittedOptions: 'https://api.cnblogs.com/api/edu/vote/committed/options/', //{memberId}/{voteId}
+	VoteCommittedMembers: 'https://api.cnblogs.com/api/edu/vote/committed/members/', //{schoolClassId}/{voteId}
+	VoteAdd: 'https://api.cnblogs.com/api/edu/vote/publish',
+	VoteDelete : 'https://api.cnblogs.com/api/edu/vote/remove/',//{schoolClassId}/{voteId},
+	UsersInfo : 'https://api.cnblogs.com/api/users',
+	VoteStatic : 'https://api.cnblogs.com/api/edu/vote/stats/', //投票统计
 }
 
 export const authData = {
@@ -41,7 +66,11 @@ export const StorageKey = {
 	BLOGAPP : "BLOGAPP",
 	SENIORITY : "SENIORITY",
 	BLOGDETAIL : "BLOGDETAIL",
-	HOMEWORKDETAIL : "HOMEWORKDETAIL"
+	HOMEWORKDETAIL : "HOMEWORKDETAIL",
+	BLOG_LIST: "BLOGLIST",
+	RECEIVE_PUSH:"RECEIVEPUSH",
+	IS_DARK_MODE: "ISDARKMODE",
+	DARK_MODE_IMPERFECT_WARNING: "DARK_MODE_IMPERFECT_WARNING",
 }
 
 export const ActionType = {
@@ -67,7 +96,7 @@ global.user_information = {
 	DisplayName : '',
 	face : '',
 	Seniority : '',  //园龄
-	BlogApp : ''
+	BlogApp : ''	 // 博客名
 }
 
 var storage = new Storage({
@@ -82,3 +111,11 @@ global.internet = true;
 
 global.unsummitted = [];
 global.timeTouch = null;
+
+global.theme = themes.light;
+
+/**全局的设置选项，可用于个性化定制 */
+global.settings = {
+	showSettings: true,
+	displayDetailTime: true,
+};

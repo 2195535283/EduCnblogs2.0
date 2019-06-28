@@ -19,10 +19,20 @@ import {
 import {
     StackNavigator,
 } from 'react-navigation';
+import {flatStyles} from '../styles/styles';
+import {blogListStyles} from '../styles/blogList';
+import { getHeaderStyle } from '../styles/theme-context';
+
 const screenWidth= MyAdapter.screenWidth;
 const screenHeight= MyAdapter.screenHeight;
 // 接受博客Id作为参数
 export default class MemberBlog extends Component{
+    static navigationOptions = ({ navigation }) => ({
+        /* 使用global.theme的地方需要单独在页面写static navigationOptions,
+            以便切换主题时及时更新。*/
+        headerStyle: getHeaderStyle(),
+        headerTintColor: global.theme.headerTintColor,
+    })
     constructor(props){
         super(props);
         this.state = {
@@ -90,14 +100,7 @@ export default class MemberBlog extends Component{
     componentWillUnmount=()=>{
         this._isMounted=false;
     }
-    _separator = () => {
-        return (
-            <View style={{ height: 9.75, justifyContent: 'center'}}>
-            <View style={{ height: 0.75, backgroundColor: 'rgb(100,100,100)'}}/>
-            <View style={{ height: 9, backgroundColor: 'rgb(235,235,235)'}}/>
-            </View>
-        );
-    }
+
     _renderItem = (item)=>{
         let item1 = item;
         var Title = item1.item.Title;
@@ -110,37 +113,25 @@ export default class MemberBlog extends Component{
         let arr = Url.split('/');
         let blogApp = arr[3];
         return(
-            <View>
-                <TouchableOpacity 
-                    style = {styles.listcontainer}
+            <View style={[flatStyles.cell, {backgroundColor:global.theme.backgroundColor}]}>
+                <TouchableOpacity
+                    style = {[styles.listcontainer, {backgroundColor:global.theme.backgroundColor}]}
                     onPress = {()=>{
-                        this.props.navigation.navigate('BlogDetail',{Url: Url, Id:Id, blogApp: blogApp, CommentCount: CommentCount})}
+                        this.props.navigation.navigate('BlogDetail',{Url: Url, Id:Id,
+                            blogApp: blogApp, CommentCount: CommentCount, Title: Title, Description:Description,})}
                     }
-                >  
-                    <Text style = {{
-                        fontSize: 18,
-                        fontWeight: 'bold',
-                        marginTop: 10,
-                        marginBottom: 2,
-                        textAlign: 'left',
-                        color: 'black',
-                        fontFamily : 'serif',
-                    }}>
+                >
+                    <Text style = {[blogListStyles.blogTitleText, {color:global.theme.textColor}]}>
                         {Title}
                     </Text>
-                    <Text  numberOfLines={3} style = {{lineHeight: 25,fontSize: 14, marginBottom: 8, textAlign: 'left', color:'rgb(70,70,70)'}}>
+                    <Text  numberOfLines={2} style = {blogListStyles.blogSummaryText}>
                         {Description+'...'}
                     </Text>
-                    <View style = {{
-                        flexDirection: 'row',
-                        marginBottom: 8,
-                        justifyContent: 'space-around',
-                        alignItems: 'flex-start'
-                    }}>
-                        <Text style = {{fontSize: 10, textAlign: 'left', color: 'black', flex: 1}}>
+                    <View style = {blogListStyles.blogAppAndTimeContainer}>
+                        <Text style = {{fontSize: 10, textAlign: 'left', color: global.theme.textColor, flex: 1}}>
                             {ViewCount+' 阅读'+'  '+CommentCount+' 评论'}
                         </Text>
-                        <Text style = {{fontSize: 10, textAlign: 'right', color: 'black', flex: 1}}>
+                        <Text style = {{fontSize: 10, textAlign: 'right', color: global.theme.textColor, flex: 1}}>
                             {'发布于: '+PostDate.split('T')[0]+' '+PostDate.split('T')[1]}
                         </Text>
                     </View>
@@ -163,10 +154,9 @@ export default class MemberBlog extends Component{
             })
         }
         return(
-            <View style = {styles.container}>
-                <View style = {styles.content}>
+            <View style = {[styles.container, {backgroundColor:global.theme.backgroundColor}]}>
+                <View style = {[styles.content, {backgroundColor:global.theme.backgroundColor}]}>
                     <FlatList
-                        ItemSeparatorComponent={this._separator}
                         renderItem={this._renderItem}
                         data={data}
                         onRefresh = {this.UpdateData}

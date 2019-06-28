@@ -24,6 +24,7 @@ import {
     TouchableOpacity,
     ScrollView,
 } from 'react-native';
+import {getHeaderStyle} from '../styles/theme-context';
 const screenWidth= MyAdapter.screenWidth;
 const screenHeight= MyAdapter.screenHeight;
 const titleFontSize= MyAdapter.titleFontSize;
@@ -32,6 +33,13 @@ const informationFontSize= MyAdapter.informationFontSize;
 const btnFontSize= MyAdapter.btnFontSize;
 const marginHorizontalNum= 0.07*screenWidth;
 export default class App extends Component {
+    static navigationOptions = ({ navigation }) => ({
+        /* 使用global.theme的地方需要单独在页面写static navigationOptions,
+            以便切换主题时及时更新。*/
+        headerStyle: getHeaderStyle(),
+        headerTintColor: global.theme.headerTintColor,
+    })
+
     constructor(props) {
         super(props);
         this.state = { 
@@ -43,19 +51,20 @@ export default class App extends Component {
             unsubmitHomeworks: [],
             counts: 0,
             isRequestSuccess: false,  
-            answers: {}      
+            answers: {},
+            membership:1,     
         };                
     }
     componentWillMount = () => {
         time = new Date();
-        if(global.timeTouch != null && (time.getTime() - global.timeTouch.getTime() < 1800000)){
-            this.setState({
-                unsubmitHomeworks: global.unsubmitted
-            })
-            return;
-        }
-        global.timeTouch = time;
-        var memberId;
+        // if(global.timeTouch != null && (time.getTime() - global.timeTouch.getTime() < 1800000)){
+        //     this.setState({
+        //         unsubmitHomeworks: global.unsubmitted
+        //     })
+        //     return;
+        // }
+        // global.timeTouch = time;
+        
         this._isMounted = true;
         this.state.myMarkedDates={};
         var unfinishedHomework = [];
@@ -77,43 +86,63 @@ export default class App extends Component {
             for (let i in this.state.classes) {
                 let classId = this.state.classes[i].schoolClassId;
                 url = Config.BlogInClassId + global.user_information.BlogId + '/'+ classId;               
-                Service.Get(url).
-                then((jsonData)=>{
-                    memberId = jsonData.memberId;
-                })
-                url = Config.apiDomain + api.ClassGet.homeworkList + "/false/" + classId + "/1-12";
-                Service.Get(url).then((jsonData) => {
-                    if (jsonData !== 'rejected') {
-                        this.setState({
-                            isRequestSuccess: true,
-                        })
-                        if (this._isMounted) {
-                            this.setState({
-                                counts: jsonData.totalCount,
-                            });
-                        }
-                    }
-                }).then(() => {
-                    url = Config.apiDomain + api.ClassGet.homeworkList + "/false/"+classId+"/"+1+"-"+this.state.counts;
+                Service.Get(url).then((jsonData)=>{
+                    let memberId = jsonData.memberId;
+                    this.state.membership = jsonData.membership;
+                    return memberId;
+                }).then((memberId)=>{
+                    url = Config.apiDomain + api.ClassGet.homeworkList + "/false/" + classId + "/1-12";
                     Service.Get(url).then((jsonData) => {
-                        let homeworks = jsonData.homeworks;                            
-                        if (this._isMounted && this.state.isRequestSuccess){
-                            for (let j in homeworks) {
-                                if(homeworks[j].isFinished === false && homeworks[j].deadline !== null){
-                                    url = Config.SubmitJudge + memberId + '/'+ homeworks[j].homeworkId;
-                                    Service.Get(url).then((data)=>{
-                                        if(data === false){ 
-                                            global.unsubmitted.push(homeworks[j]);
-                                            this.setState({
-                                                unsubmitHomeworks: global.unsubmitted
-                                            })                  
-                                        }
-                                    })
-                                }
-                            }         
-                        }    
+                        if (jsonData !== 'rejected') {
+                            this.setState({
+                                isRequestSuccess: true,
+                            })
+                            if (this._isMounted) {
+                                this.setState({
+                                    counts: jsonData.totalCount,
+                                });
+                            }
+                        }
+                        return memberId;
+                    }).then((memberId) => {
+                        url = Config.apiDomain + api.ClassGet.homeworkList + "/false/"+classId+"/"+1+"-"+this.state.counts;
+                        Service.Get(url).then((jsonData) => {
+                            let homeworks = jsonData.homeworks;                            
+                            if (this._isMounted && this.state.isRequestSuccess){
+                                // for (let j in homeworks) {
+                                //     if(homeworks[j].isFinished === false && homeworks[j].deadline !== null){
+                                //         url = Config.SubmitJudge + memberId + '/'+ homeworks[j].homeworkId;
+                                //         Service.Get(url).then((data)=>{
+                                //             if(data == false){ 
+                                //                 homeworks[j].membership = this.state.membership;
+                                //                 homeworks[j].schoolClassId = classId;
+                                //                 global.unsubmitted.push(homeworks[j]);
+                                //                 this.setState({
+                                //                     unsubmitHomeworks: global.unsubmitted
+                                //                 })                  
+                                //             }
+                                //         })
+                                //     }
+                                // }  
+                                homeworks.map((homework)=> {
+                                    if(homework.isFinished === false && homework.deadline !== null){
+                                        url = Config.SubmitJudge + memberId + '/'+ homework.homeworkId;
+                                        Service.Get(url).then((data)=>{
+                                            if(data == false){ 
+                                                homework.membership = this.state.membership;
+                                                homework.schoolClassId = classId;
+                                                global.unsubmitted.push(homework);
+                                                this.setState({
+                                                    unsubmitHomeworks: global.unsubmitted
+                                                })                  
+                                            }
+                                        })
+                                    }
+                                })     
+                            }    
+                        })
                     })
-                })  
+                }) 
             }        
         }).catch((error)=>{ToastAndroid.show("网络请求失败，请检查连接状态！",ToastAndroid.SHORT)})    
     }  
@@ -138,12 +167,14 @@ export default class App extends Component {
             };
         }
     return (
-        <ScrollView>
+        <ScrollView
+            style = {[{backgroundColor: global.theme.backgroundColor}]}
+        >
         <View
             style= {{
                 flexDirection: 'column',
                 flex: 1,
-                backgroundColor: 'white'
+                backgroundColor: global.theme.backgroundColor
             }}
         >       
             <Calendar
@@ -163,7 +194,9 @@ export default class App extends Component {
                                     description: this.state.unsubmitHomeworks[i].description,//作业描述
                                     deadline: this.state.unsubmitHomeworks[i].deadline,//作业截止日期
                                     isFinished: this.state.unsubmitHomeworks[i].isFinished,// 作业是否结束
-                                    classId: this.state.unsubmitHomeworks[i].schoolClassId//班级Id
+                                    classId: this.state.unsubmitHomeworks[i].schoolClassId,//班级Id
+                                    membership:this.state.unsubmitHomeworks[i].membership,
+                                    blogId:global.user_information.BlogId,
                                 })
                             }
                         }
@@ -171,9 +204,15 @@ export default class App extends Component {
                     }
                 }}     
                 theme={{
-                    selectedDayBackgroundColor: '#3b50ce',
-                    selectedDayTextColor: '#ffffff',
-                    todayTextColor: 'red'
+                    calendarBackground : global.theme.backgroundColor,
+                    backgroundColor:global.theme.backgroundColor,
+                    selectedDayBackgroundColor: global.theme.headerTintColor,
+                    selectedDayTextColor: global.theme.backgroundColor,
+                    todayTextColor: 'red',
+                    dayTextColor:global.theme.textColor,
+                    arrowColor : global.theme.headerTintColor,
+                    monthTextColor : global.theme.textColor,
+                    textDisabledColor : global.theme.calendarDisableColor,
                   }}                                      
             />        
         </View>

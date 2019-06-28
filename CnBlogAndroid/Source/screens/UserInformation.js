@@ -7,6 +7,10 @@ import React, { Component} from 'react';
 //关于cookie包的配置方法，请看https://github.com/joeferraro/react-native-cookies
 import CookieManager from 'react-native-cookies'
 import * as storage from '../Storage/storage.js'
+import * as umengPush from '../umeng/umengPush'
+import * as Push from '../DataHandler/Push/PushHandler'; 
+import BlogURL from '../component/BlogURL';
+import TouchableTextWithIcon from '../component/TouchableTextWithIcon';
 import {
     StyleSheet,
     Text,
@@ -14,17 +18,17 @@ import {
     ToastAndroid,
     TouchableOpacity,
     Image,
-    TextInput,
-    Dimensions,
-    Button,
+    Switch,
     TouchableHighlight,
     ScrollView
 } from 'react-native';
 import {
     StackNavigator,
     TabNavigator,
-    NavigationActions
+    NavigationActions,
+    withNavigationFocus,
 } from 'react-navigation';
+import { homeTabHeaderHeight } from '../styles/theme-context';
 
 const screenWidth= MyAdapter.screenWidth;
 const screenHeight= MyAdapter.screenHeight;
@@ -33,37 +37,42 @@ const abstractFontSize= MyAdapter.abstractFontSize;
 const informationFontSize= MyAdapter.informationFontSize;
 const btnFontSize= MyAdapter.btnFontSize;
 
-export default class UserInformation extends Component{
+class UserInformation extends Component{
     constructor(props){
         super(props);
         this.state={
             faceurl:'',
             DisplayName: '',
             BlogApp: '',
-            Seniority: ''
+            Seniority: '',
         }
     }
-	
+
     _logout=()=>{
-        storage.removeItem(StorageKey.USER_TOKEN).then((res)=>{
-            CookieManager.clearAll()
-            .then((res)=>{
-//                this.props.navigation.navigate('Loginer');
-                const resetAction = NavigationActions.reset({
-                    index: 0,
-                    actions: [
-                        NavigationActions.navigate({ routeName: 'Loginer'}),
-                    ]
-                });
-                this.props.navigation.dispatch(resetAction);
+        // 简单的清空浏览记录
+        global.storage.save({key: StorageKey.BLOG_LIST, data: []});
+        storage.removeItem(StorageKey.RECEIVE_PUSH).then(
+            storage.removeItem(StorageKey.USER_TOKEN).then((res)=>{
+                CookieManager.clearAll()
+                .then((res)=>{
+                    umengPush.deleteAllTags();
+    //                this.props.navigation.navigate('Loginer');
+                    const resetAction = NavigationActions.reset({
+                        index: 0,
+                        actions: [
+                            NavigationActions.navigate({ routeName: 'Loginer'}),
+                        ]
+                    });
+                    this.props.navigation.dispatch(resetAction);
+                })
             })
-        })
+        )
     }
     _isMounted;
     componentWillUnmount=()=>{
         this._isMounted=false;
     }
-	
+
     componentWillMount=()=>{
         this._isMounted=true;
         let user_url = Config.apiDomain + api.user.info;
@@ -79,7 +88,7 @@ export default class UserInformation extends Component{
                 BlogApp : jsonData.BlogApp
             }
         })
-		.then(()=>{
+        .then(()=>{
             if(this._isMounted){
             this.setState({
                 faceurl: global.user_information.face,
@@ -88,68 +97,76 @@ export default class UserInformation extends Component{
                 Seniority: global.user_information.Seniority,
             })}
         }).then(()=>{
-			global.storage.save({key:StorageKey.DISPLAYNAME,data:this.state.DisplayName});
-		}).then(()=>{
-			global.storage.save({key:StorageKey.BLOGAPP,data:this.state.BlogApp});
-		}).then(()=>{
-			global.storage.save({key:StorageKey.SENIORITY,data:this.state.Seniority});
-		})
-		.catch((error)=>{
-			ToastAndroid.show(err_info.NO_INTERNET,ToastAndroid.SHORT)
-			global.storage.load({key:StorageKey.DISPLAYNAME})
-			.then((ret)=>{
-				this.setState({
-					DisplayName : ret,
-				})
-			}).then(()=>{
-				global.storage.load({key:StorageKey.BLOGAPP})
-				.then((ret)=>{
-					this.setState({
-						BlogApp : ret,
-					})
-				})
-			}).then(()=>{
-				global.storage.load({key:StorageKey.SENIORITY})
-				.then((ret)=>{
-					this.setState({
-						Seniority : ret,
-						faceurl : '',
-					})
-				})
-			})
-			.catch((err)=>{
-				ToastAndroid.show(err_info.TIME_OUT,ToastAndroid.SHORT);
-				this.props.navigation.navigate('Loginer');
-			})
-		})
+            global.storage.save({key:StorageKey.DISPLAYNAME,data:this.state.DisplayName});
+        }).then(()=>{
+            global.storage.save({key:StorageKey.BLOGAPP,data:this.state.BlogApp});
+        }).then(()=>{
+            global.storage.save({key:StorageKey.SENIORITY,data:this.state.Seniority});
+        })
+        .catch((error)=>{
+            ToastAndroid.show(err_info.NO_INTERNET,ToastAndroid.SHORT)
+            global.storage.load({key:StorageKey.DISPLAYNAME})
+            .then((ret)=>{
+                this.setState({
+                    DisplayName : ret,
+                })
+            }).then(()=>{
+                global.storage.load({key:StorageKey.BLOGAPP})
+                .then((ret)=>{
+                    this.setState({
+                        BlogApp : ret,
+                    })
+                })
+            }).then(()=>{
+                global.storage.load({key:StorageKey.SENIORITY})
+                .then((ret)=>{
+                    this.setState({
+                        Seniority : ret,
+                        faceurl : '',
+                    })
+                })
+            })
+            .catch((err)=>{
+                ToastAndroid.show(err_info.TIME_OUT,ToastAndroid.SHORT);
+                this.props.navigation.navigate('Loginer');
+            })
+        })
     }
-	
+
+    /**从版本号中启动设置功能，需要调用此函数重新render */
+    rerender = () => {
+        this.forceUpdate();
+    }
+
     render() {
+    let blogUrl = this.state.BlogApp == null || this.state.BlogApp == '' ? '您尚未开通博客主页' : 'https://www.cnblogs.com/' + this.state.BlogApp;
     return (
-        <ScrollView>
+        <ScrollView contentContainerStyle={{flex: 1, backgroundColor: global.theme.backgroundColor,}}>
         <View
             style= {{
                 flexDirection: 'column',
                 flex: 1,
+                backgroundColor: global.theme.BackgroundColor,
             }}
         >
             <View style= {{
                 flexDirection: 'row',
-                justifyContent:'flex-start',
+                justifyContent:'center',
                 alignItems: 'center',
-                marginBottom: 0.03*screenHeight,
-                backgroundColor: UI.TOP_COLOR,
-                height: screenHeight/12,
-                paddingLeft: 0.05*screenWidth,
+                backgroundColor: global.theme.headerBackgroundColor,
+                height: homeTabHeaderHeight,
             }}>
-                <Text style = {{fontSize: 18, fontWeight: 'bold', color:'white'}}>个人信息</Text>
+                <Text style = {{fontSize: 18, fontWeight: 'normal', color:global.theme.headerTintColor}}>
+                    个人信息
+                </Text>
             </View>
+            <View style={{ height: 0.75, backgroundColor: global.theme.seperatorColor}}/>
             <View style= {{
                 flexDirection: 'row',
                 justifyContent:'flex-start',
                 alignItems: 'center',
-                marginBottom: 0.02*screenHeight,
-                backgroundColor: 'white',
+                marginBottom: 0.005*screenHeight,
+                backgroundColor: global.theme.backgroundColor,
                 height: 0.15*screenHeight,
                 paddingLeft: 0.05*screenWidth,
             }}
@@ -158,80 +175,100 @@ export default class UserInformation extends Component{
                     style= {{
                         width: 0.1*screenHeight,
                         height: 0.1*screenHeight,
+                        opacity: global.theme.imageOpacity,
+                        borderRadius: 4,
                     }}
                     source={{uri: this.state.faceurl?this.state.faceurl:'../images/defaultface.png'}}
                 />
-                <View style = {{justifyContent: 'center',paddingLeft: 0.05*screenWidth,}}>
-                <Text style = {{fontSize: 18, fontWeight: 'bold', color:'rgb(51,51,51)'}}>用户昵称:</Text>
-                <Text style = {{fontSize: 15}}>{this.state.DisplayName}</Text>
+                <View style = {{justifyContent: 'center',paddingLeft: 0.07*screenWidth,}}>
+                    <Text style = {{fontSize: 18, fontWeight: 'bold',color: global.theme.textColor}}>{this.state.DisplayName}</Text>
+                    <View style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        backgroundColor: global.theme.seniorityBackgroundColor, 
+                        borderRadius: 10, 
+                        padding: 5,
+                        paddingHorizontal: 10,
+                        marginTop: 5,}}
+                    >
+                        <View style={{
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            backgroundColor: global.theme.seniorityForegroundColor, 
+                            borderRadius: 8, 
+                            marginRight: 5,
+                            height: 16, 
+                            width: 16,
+                        }}
+                        >
+                        <Image source={require('../images/heart_solid.png')}
+                            resizeMode='contain'
+                            style={{height: 11, width: 11}}
+                            tintColor='#FFF'
+                        />
+                        </View>
+                        <Text style={{
+                            fontSize: 12,
+                            fontWeight: 'bold',
+                            color: global.theme.seniorityForegroundColor, 
+                        }}>{'园龄：' + this.state.Seniority}</Text>
+                    </View>
                 </View>
             </View>
-            <View style = {{
-                justifyContent:'center',
-                alignItems: 'flex-start',
-                height: 0.1*screenHeight,
-                marginBottom: 0.02*screenHeight,
-                backgroundColor: 'white',
-                paddingLeft: 0.05*screenWidth,
-            }}>
-                <Text style = {{fontSize: 18, fontWeight: 'bold', color:'rgb(51,51,51)'}}>博客地址:</Text>
-                <Text style = {{fontSize: 15}}>https://www.cnblogs.com/{this.state.BlogApp}/</Text>
-            </View>
-            <View style = {{
-                justifyContent:'center',
-                alignItems: 'flex-start',
-                height: 0.1*screenHeight,
-                marginBottom: 0.02*screenHeight,
-                backgroundColor: 'white',
-                paddingLeft: 0.05*screenWidth,
-            }}>
-                <Text style = {{fontSize: 18, fontWeight: 'bold', color:'rgb(51,51,51)'}}>园龄:</Text>
-                <Text style = {{fontSize: 15}}>{this.state.Seniority}</Text>
-            </View>
-            <TouchableHighlight
-                underlayColor="white"
-                activeOpacity={0.5}
-                onPress={()=>{this.props.navigation.navigate('ScheduleReminding');}}//关联函数
-                style = {{
-                    justifyContent:'center',
-                    alignItems: 'flex-start',
-                    height: 0.07*screenHeight,
-                    marginBottom: 0.02*screenHeight,
-                    backgroundColor: 'white',
-                    paddingLeft: 0.05*screenWidth,
-            }}>
-                <Text style = {{fontSize: 18, fontWeight: 'bold', color:'rgb(51,51,51)'}}>日程提醒</Text>
-            </TouchableHighlight>            
-            <TouchableHighlight
-                underlayColor="white"
-                activeOpacity={0.5}
-                onPress={()=>{this.props.navigation.navigate('AppInformation');}}//关联函数
-                style = {{
-                    justifyContent:'center',
-                    alignItems: 'flex-start',
-                    height: 0.07*screenHeight,
-                    marginBottom: 0.05*screenHeight,
-                    backgroundColor: 'white',
-                    paddingLeft: 0.05*screenWidth,
-            }}>
-                <Text style = {{fontSize: 18, fontWeight: 'bold', color:'rgb(51,51,51)'}}>关于App</Text>
-            </TouchableHighlight>
-            <TouchableOpacity style = {{
-                justifyContent:'center',
-                alignItems: 'flex-start',
-                height: 0.07*screenHeight,
-                backgroundColor: 'rgb(204,255,255)',
-                paddingLeft: 0.05*screenWidth,
-            }}
-                onPress = {this._logout.bind(this)}
-            >
-                <Text style = {{fontSize: 18, fontWeight: 'bold', color:'rgb(51,51,51)'}}>退出登录</Text>
-            </TouchableOpacity>
+            <BlogURL blogURL={blogUrl}/>
+            <TouchableTextWithIcon
+                text='日程提醒'
+                imageSource={require('../images/calendar_transparent.png')}
+                imageBackgroundColor={global.theme.calendarIconBackgroundColor}
+                imageTintColor={global.theme.calendarIconTintColor}
+                onPress={() => {this.props.navigation.navigate('ScheduleReminding')}}
+            />
+            <TouchableTextWithIcon
+                text='收藏列表'
+                imageSource={require('../images/star.png')}
+                imageBackgroundColor={global.theme.bookmarkIconBackgroundColor}
+                imageTintColor={global.theme.bookmarkIconTintColor}
+                onPress={() => {this.props.navigation.navigate('BookmarksList')}}
+            />
+            <TouchableTextWithIcon
+                text='浏览记录'
+                imageSource={require('../images/clock.png')}
+                imageBackgroundColor={global.theme.historyIconBackgroundColor}
+                imageTintColor={global.theme.historyIconTintColor}
+                onPress={() => {this.props.navigation.navigate('HistoryList')}}
+            />
+            <TouchableTextWithIcon
+                text='设置'
+                imageSource={require('../images/setting_transparent.png')}
+                imageBackgroundColor={global.theme.settingIconBackgroundColor}
+                imageTintColor={global.theme.settingIconTintColor}
+                onPress={() => {this.props.navigation.navigate('Settings')}}
+            />
+            <TouchableTextWithIcon
+                text='关于App'
+                imageSource={require('../images/info.png')}
+                imageBackgroundColor={global.theme.aboutIconBackgroundColor}
+                imageTintColor={global.theme.aboutIconTintColor}
+                onPress={() => {this.props.navigation.navigate('AppInformation', {
+                        callback: this.rerender,
+                    }
+                )}}
+            />
+            <TouchableTextWithIcon
+                text='退出登录'
+                imageSource={require('../images/exit.png')}
+                imageBackgroundColor={global.theme.logoutIconBackgroundColor}
+                imageTintColor={global.theme.logoutIconTintColor}
+                onPress={this._logout.bind(this)}
+                textColor={global.theme.hightlightTextColor}
+            />
         </View>
         </ScrollView>
     );
   }
 }
+
+export default withNavigationFocus(UserInformation);
 
 const styles = StyleSheet.create({
     container: {
