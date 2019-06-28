@@ -23,6 +23,8 @@ export function GetInfo(url, token){
         .then((response)=>{
             if(response.status!=200)
             {
+                console.log(url);
+                console.log(response);
                 resolve("rejected");
             }
             else{
@@ -66,7 +68,7 @@ export function UserAction(url,content,type){  //此处的body为修改的内容
 		})
 		.catch((error) => {
 		    //ToastAndroid.show(err_info.NO_INTERNET,ToastAndroid.SHORT);
-			reject("rejected");
+			reject(error);
 		});   
 	})
 }
@@ -87,7 +89,29 @@ function PostInfo(url,token,content,type){
         })
         .catch((error) => {
             ToastAndroid.show(err_info.NO_INTERNET,ToastAndroid.SHORT);
-            reject("rejected");     //如果失败了，那么就返回一个rejected
+            reject(error);     //如果失败了，那么就返回一个rejected
         });
     });
 }
+
+//这个函数是涉及到操作的request
+//传入的内容要是json化的
+export function RawUserAction(url,content,type){        
+	return new Promise((resolve,reject)=>{
+        fetch(url,{
+            method : type,
+            headers: {
+                'Content-Type': 'application/json;charset=UTF-8',
+            },
+			body : content,timeout: 5*1000
+        })
+        .then((response)=>{
+            resolve(response);
+        })
+        .catch((error) => {
+            ToastAndroid.show(err_info.NO_INTERNET,ToastAndroid.SHORT);
+            reject(error);     //如果失败了，那么就返回一个rejected
+        });
+    });
+}
+
