@@ -10,7 +10,7 @@ import fetch from 'react-native-fetch-polyfill'
 import React, { Component,} from 'react';
 import CookieManager from 'react-native-cookies'
 import { Icon } from 'native-base';
-
+import * as umengAnalysis from './Source/umeng/umengAnalysis'
 import {
     Platform,
     StyleSheet,
@@ -25,6 +25,7 @@ import {
     WebView,
     AsyncStorage,
     Alert,
+    BackHandler,
 } from 'react-native';
 import {
     StackNavigator,
@@ -32,15 +33,21 @@ import {
     NavigationActions
 } from 'react-navigation';
 
+import ClassFunction from './Source/screens/ClassFunction'
 import HomeworkDetail from './Source/screens/HomeworkDetail'
 import HomeworkLists from './Source/screens/HomeworkLists'
 import PersonalBlog from './Source/screens/PersonalBlog'
 import ClassLists from './Source/screens/ClassLists'
 import UserInformation from './Source/screens/UserInformation'
+import ClassListsNew from './Source/screens/ClassListsNew'
 import ClassHome from './Source/screens/ClassHome'
 import HomeworkPost from './Source/screens/HomeworkPost'
+import HomeworkEdition from './Source/screens/HomeworkEdition'
 import BlogDetail from './Source/screens/BlogDetail'
 import BlogComment from './Source/screens/BlogComment'
+import BlogBookmarks from './Source/screens/BlogBookmarks'
+import BookmarksList from './Source/screens/BookmarksList'
+import BookmarksEdit from './Source/screens/BookmarksEdit'
 import ClassMember from './Source/screens/ClassMember'
 import ClassMemberAdd from './Source/screens/ClassMemberAdd'
 import MemberBlog from './Source/screens/MemberBlog'
@@ -51,6 +58,17 @@ import ContactPage from './Source/screens/ContactPage'
 import Submitted from './Source/screens/Submitted'
 import HomeworkSubmit from './Source/screens/HomeworkSubmit'
 import UnfinishedHomeworkList from './Source/screens/UnfinishedHomeworkList'
+import BlogEdition from './Source/screens/BlogEdition'
+import Bulletin from './Source/screens/Bulletin'
+import BulletinAdd from './Source/screens/BulletinAdd'
+import BulletinEdition from './Source/screens/BulletinEdition'
+import HistoryList from './Source/screens/HistoryList'
+import ClassSelect from './Source/screens/ClassSelect'
+import VoteList from './Source/screens/VoteList'
+import Settings from './Source/screens/Settings'
+import VoteDetail from './Source/screens/VoteDetail'
+import VoteAdd from './Source/screens/VoteAdd'
+import VoteMemberList from './Source/screens/VoteMemberList'
 const { height, width } = Dimensions.get('window');
 
 const CODE_URL = [
@@ -69,6 +87,8 @@ class App extends Component {
     render() {
         //这里一定要测试一下，如果是刚刚下载的软件，一开始打开是不是会显示登陆界面
         const {navigate} = this.props.navigation;
+        //推送开关变量
+        
         return (
             <View style={styles.container}>
                 <Welcome/>
@@ -109,44 +129,53 @@ class Welcome extends Component{
         this.props.navigation.dispatch(resetAction);
     }
 
+    async setPush(){
+        var receivePush = await storage.getItem(StorageKey.RECEIVE_PUSH);
+        if(receivePush === null){
+            storage.setItem(StorageKey.RECEIVE_PUSH,'true');
+        }
+    }
+
     componentDidMount(){
         this.timer = setTimeout(
             ()=>{
-                storage.getItem(StorageKey.USER_TOKEN).then((token)=>{
-                    if(token === null)
-                    {
-                        this.toHome();
-                    }
-                    else{
-                        if(token.access_token !== 'undefined')
-                        {
-                            let url = Config.apiDomain+'api/users/';
-                            Service.GetInfo(url,token.access_token)
-                            .then((jsonData)=>{
-                                if(jsonData !== "rejected")
-                                {
-                                    this.toPersonalBlog();
-                                }
-                                else
-                                {
-                                    storage.removeItem(StorageKey.USER_TOKEN).then((res)=>{
-                                        CookieManager.clearAll()
-                                        .then((res)=>{
-                                            this.props.navigation.navigate('Loginer')
-                                        })
-                                    })
-                                }
-                            })
-                            .catch((error) => {
-                                this.toPersonalBlog();
-                            });
-                        }
-                        else
+                this.setPush().then(
+                    storage.getItem(StorageKey.USER_TOKEN).then((token)=>{
+                        if(token === null)
                         {
                             this.toHome();
                         }
-                    }
-                })
+                        else{
+                            if(token.access_token !== 'undefined')
+                            {
+                                let url = Config.apiDomain+'api/users/';
+                                Service.GetInfo(url,token.access_token)
+                                .then((jsonData)=>{
+                                    if(jsonData !== "rejected")
+                                    {
+                                        this.toPersonalBlog();
+                                    }
+                                    else
+                                    {
+                                        storage.removeItem(StorageKey.USER_TOKEN).then((res)=>{
+                                            CookieManager.clearAll()
+                                            .then((res)=>{
+                                                this.props.navigation.navigate('Loginer')
+                                            })
+                                        })
+                                    }
+                                })
+                                .catch((error) => {
+                                    this.toPersonalBlog();
+                                });
+                            }
+                            else
+                            {
+                                this.toHome();
+                            }
+                        }
+                    })
+                )
             }
             ,1000)
     }
@@ -167,6 +196,28 @@ class Loginer extends Component{
             </View>
         );
     }
+    componentWillMount() {
+      if (Platform.OS === 'android') {
+        BackHandler.addEventListener('hardwareBackPress', this.onBackAndroid);
+      }
+    }
+    componentWillUnmount() {
+      if (Platform.OS === 'android') {
+        BackHandler.removeEventListener('hardwareBackPress', this.onBackAndroid);
+      }
+    }
+
+
+    onBackAndroid = () => {
+      if (this.lastBackPressed && this.lastBackPressed + 2000 >= Date.now()) {
+        BackHandler.exitApp();
+        return false;
+      }
+      this.lastBackPressed = Date.now();
+      ToastAndroid.show('再按一次退出应用',1000);
+
+      return true;
+    };
 }
 
 class UrlLogin extends Component{
@@ -204,6 +255,7 @@ class UrlLogin extends Component{
             storage.setItem(StorageKey.USER_TOKEN,responseJson);
         }).then(()=>{
             this.toPerson();
+            umengAnalysis.onEvent(umengAnalysis.umengEventId.logInEvent);
         })
         .catch((error)=>{
             ToastAndroid.show(err_info.NO_INTERNET,ToastAndroid.SHORT);
@@ -302,12 +354,12 @@ const HomeTab = TabNavigator({
             )
         }
     },
-    ClassLists: {
-        screen: ClassLists,
+    ClassListsNew: {
+        screen: ClassListsNew,
         navigationOptions: {
             tabBarLabel: '我的班级',
             tabBarIcon: ({ tintColor, focused }) => (
-               <Image
+                <Image
                     resizeMode='contain'
                     source={require('./Source/images/nav_class.png')}
                     style={{height: 20}}
@@ -355,6 +407,72 @@ const HomeTab = TabNavigator({
 })
 
 const SimpleNavigation = StackNavigator({
+
+    VoteDetail: {
+        screen: VoteDetail,
+        // navigationOptions放到VoteDetail.js里。
+    },
+
+    VoteList:{
+        screen: VoteList,
+        navigationOptions:{
+            headerTintColor : 'white',
+            headerTitle: '投票',
+            headerStyle: {
+                height:40,
+                backgroundColor:UI.TOP_COLOR,
+            },
+            headerTitleStyle: {
+                fontSize: 18,
+            },
+        }
+    },
+
+    VoteMemberList: {
+        screen: VoteMemberList,
+        navigationOptions: {
+            headerTintColor: 'white',
+            headerTitle: '已投票成员',
+            headerStyle: {
+                height:40,
+                backgroundColor:UI.TOP_COLOR,
+            },
+            headerTitleStyle: {
+                fontSize: 18,
+            },
+        }
+    },
+
+    VoteAdd: {
+        screen: VoteAdd,
+        navigationOptions: {
+            headerTintColor:'white',
+            headerTitle: '投票列表',
+            headerStyle: {
+                height: 40,
+                backgroundColor: UI.TOP_COLOR,
+            },
+            headerTitleStyle: {
+                fontSize: 18,
+            },
+        }
+    },
+
+    ClassFunction: {
+        screen: ClassFunction,
+        navigationOptions: {
+            headerTintColor:'white',
+            headerTitle: '班级功能',
+            headerStyle: {
+                height: 40,
+                backgroundColor: UI.TOP_COLOR,
+            },
+            headerTitleStyle: {
+                fontSize: 18,
+            }
+        },
+    },
+
     Welcome: {
         screen: Welcome,
         navigationOptions: {
@@ -430,6 +548,12 @@ const SimpleNavigation = StackNavigator({
             header: null,
         }
     },
+    ClassListsNew: {
+        screen: ClassListsNew,
+        navigationOptions: {
+            header: null,
+        }
+    },
     AfterloginTab: {
         screen: HomeTab,
         navigationOptions: {
@@ -464,6 +588,20 @@ const SimpleNavigation = StackNavigator({
             }
         }
     },
+    HomeworkEdition: {
+        screen: HomeworkEdition,
+        navigationOptions: {
+            headerTintColor:'white',
+            headerTitle: '作业编辑',
+            headerStyle: {
+                height: 40,
+                backgroundColor: UI.TOP_COLOR,
+            },
+            headerTitleStyle: {
+                fontSize: 18,
+            }
+        }
+    },
     ScheduleReminding: {
         screen: ScheduleReminding,
         navigationOptions: {
@@ -483,6 +621,62 @@ const SimpleNavigation = StackNavigator({
         navigationOptions: {
             headerTintColor:'white',
             headerTitle: '博文详情',
+            headerStyle: {
+                height: 40,
+                backgroundColor: UI.TOP_COLOR,
+            },
+            headerTitleStyle: {
+                fontSize: 18,
+            },
+        }
+    },
+    BookmarksList:{
+        screen: BookmarksList,
+        navigationOptions: {
+            headerTintColor:'white',
+            headerTitle: '收藏列表',
+            headerStyle: {
+                height: 40,
+                backgroundColor: UI.TOP_COLOR,
+            },
+            headerTitleStyle: {
+                fontSize: 18,
+            },
+        }
+    },
+    BlogEdition: {
+        screen: BlogEdition,
+        navigationOptions: {
+            headerTintColor:'white',
+            headerTitle: '编辑博文',
+            headerStyle: {
+                height: 40,
+                backgroundColor: UI.TOP_COLOR,
+            },
+            headerTitleStyle: {
+                fontSize: 18,
+            },
+        }
+    },
+    BlogBookmarks: {
+        screen: BlogBookmarks,
+        navigationOptions: {
+            headerTintColor:'white',
+            headerTitle: '添加收藏',
+            headerStyle: {
+                height: 40,
+                backgroundColor: UI.TOP_COLOR,
+            },
+            headerTitleStyle: {
+                fontSize: 18,
+            },
+        }
+    },
+    BookmarksEdit: {
+        screen: BookmarksEdit,
+        navigationOptions: {
+            headerTintColor:'white',
+            headerTitle: '修改收藏',
             headerStyle: {
                 height: 40,
                 backgroundColor: UI.TOP_COLOR,
@@ -608,7 +802,7 @@ const SimpleNavigation = StackNavigator({
     HomeworkSubmit: {
         screen: HomeworkSubmit,
         navigationOptions:{
-            headerTintColor:'white',
+            headerTintColor : 'white',
             headerTitle: '请选择你要提交的博文',
             headerStyle: {
                 height:40,
@@ -618,7 +812,91 @@ const SimpleNavigation = StackNavigator({
                 fontSize: 18,
             }
         }
-    }
+    },
+    Bulletin: {
+        screen: Bulletin,
+        navigationOptions:{
+            headerTintColor : 'white',
+            headerTitle: '公告',
+            headerStyle: {
+                height:40,
+                backgroundColor:UI.TOP_COLOR,
+            },
+            headerTitleStyle: {
+                fontSize: 18,
+            }
+        }
+    },
+    HistoryList: {
+        screen: HistoryList,
+        navigationOptions:{
+            headerTintColor : 'white',
+            headerTitle: '浏览记录',
+            headerStyle: {
+                height:40,
+                backgroundColor:UI.TOP_COLOR,
+            },
+            headerTitleStyle: {
+                fontSize: 18,
+            }
+        }
+    },
+    BulletinAdd: {
+        screen: BulletinAdd,
+        navigationOptions:{
+            headerTintColor : 'white',
+            headerTitle: '添加公告',
+            headerStyle: {
+                height:40,
+                backgroundColor:UI.TOP_COLOR,
+            },
+            headerTitleStyle: {
+                fontSize: 18,
+            }
+        }
+    },
+    BulletinEdition: {
+        screen: BulletinEdition,
+        navigationOptions:{
+            headerTintColor : 'white',
+            headerTitle: '编辑公告',
+            headerStyle: {
+                height:40,
+                backgroundColor:UI.TOP_COLOR,
+            },
+            headerTitleStyle: {
+                fontSize: 18,
+            }
+        }
+    },
+    ClassSelect: {
+        screen: ClassSelect,
+        navigationOptions:{
+            headerTintColor : 'white',
+            headerTitle: '选择班级',
+            headerStyle: {
+                height:40,
+                backgroundColor:UI.TOP_COLOR,
+            },
+            headerTitleStyle: {
+                fontSize: 18,
+            }
+        }
+    },
+    Settings: {
+        screen: Settings,
+        navigationOptions:{
+            headerTintColor : 'white',
+            headerTitle: '设置',
+            headerStyle: {
+                height:40,
+                backgroundColor: '#555',
+            },
+            headerTitleStyle: {
+                fontSize: 18,
+            }
+        }
+    },
 },{
     initialRouteName: 'Welcome',
 });
